@@ -1,0 +1,164 @@
+module "ecs-cluster-fargate-module" {
+  source                                    = "git::https://github.com/Archesys-Aws-Terraform-Modules/aws-ecs-cluster-terraform-module//module/ecs-cluster?ref=main"
+  deletion_window_in_days                   = var.deletion_window_in_days
+  ecs_cloudwatch_log_group_name             = var.ecs_cloudwatch_log_group_name
+  ecs_cluster_name                          = var.ecs_cluster_name
+  logging                                   = var.logging
+  cloud_watch_encryption_enabled            = var.cloud_watch_encryption_enabled
+  capacity_providers                        = var.capacity_providers
+  capacity_provider                         = var.capacity_provider
+  common_tags                               = var.common_tags #module.oc-tags.application_tags #{} 
+  default_capacity_provider_strategy_weight = var.default_capacity_provider_strategy_weight
+  default_capacity_provider_strategy_base   = var.default_capacity_provider_strategy_base
+  cluster_type                              = var.cluster_type
+}
+
+module "ecs-cluster-task-and-service" {
+  source                     = "../../module/ecs-service-and-task"
+  ecs_task_definition_family = var.ecs_task_definition_family
+  network_mode               = var.network_mode
+  task_cpu                   = var.task_cpu
+  ecs_launch_type            = var.ecs_launch_type
+  task_memory                = var.task_memory
+  container_image            = var.container_image
+  cpu                        = var.cpu
+  memory                     = var.memory
+  container_port             = var.container_port
+  container_host_port        = var.container_host_port
+  container_protocol         = var.container_protocol
+  ecs_service_name           = var.ecs_service_name
+  ecs_cluster_id             = data.terraform_remote_state.alb-and-ecs-cluster-backend.outputs.ecs_cluster_id
+  container_desired_count    = var.container_desired_count
+  launch_type                = var.launch_type
+  lb_arns                    = data.terraform_remote_state.alb-and-ecs-cluster-backend.outputs.lb_arn
+  container_name             = var.container_name
+  subnet_ids                 = data.terraform_remote_state.rds-mysql.outputs.subnet_ids
+  cloudwatch_log_group_name  = data.terraform_remote_state.alb-and-ecs-cluster-backend.outputs.cloudwatch_log_group_name
+  region                     = var.region
+  security_groups_ids        = var.security_groups_ids  #concat(module.security-groups.standard_security_group_ids, var.inbound_security_group)
+  force_new_deployment       = var.force_new_deployment
+  aws_iam_role_name          = var.aws_iam_role_name
+  aws_iam_policy_name        = var.aws_iam_policy_name
+  cluster_type               = var.cluster_type
+  path                       = var.path #module.iam.default_iam_role_path
+  permissions_boundary       = data.terraform_remote_state.alb-and-ecs-cluster-backend.outputs.permissions_boundary
+  common_tags                = var.common_tags #module.oc-tags.application_tags
+  target_group_name          = var.target_group_name
+  target_type                = var.target_type
+  protocol                   = var.protocol
+  port                       = var.port_targetgroup
+  vpc_id                     = var.vpc_id #module.network.vpc_id
+  health_check_path          = var.health_check_path
+  timeout                    = var.timeout
+  interval                   = var.interval
+  healthy_threshold          = var.healthy_threshold
+  unhealthy_threshold        = var.unhealthy_threshold
+  matcher                    = var.matcher
+  certificate_arn            = var.certificate_arn
+  database_user              = data.terraform_remote_state.rds-mysql.outputs.db_instance_username
+  database_password          = data.terraform_remote_state.rds-mysql.outputs.db_instance_password
+  instance_endpoint          = data.terraform_remote_state.rds-mysql.outputs.db_instance_endpoint
+}
+
+module "alb" {
+  source                      = "git::https://github.com/Archesys-Aws-Terraform-Modules/terraform-aws-alb/?ref=main"
+  name                        = var.load_balancer_name
+  internal                    = true
+  create_security_group       = var.create_security_group
+  load_balancer_type          = var.load_balancer_type
+  subnets_ids                 = data.terraform_remote_state.rds-mysql.outputs.subnet_ids
+  vpc_id                      = var.vpc_id #module.network.vpc_id
+  standard_security_group_ids = var.security_groups_ids #concat(module.security-groups.standard_security_group_ids, var.inbound_security_group)
+  application_tags            = var.common_tags #module.oc-tags.application_tags
+  target_groups               = var.target_groups
+  https_listeners             = var.https_listeners
+  http_tcp_listeners          = var.http_tcp_listeners
+
+}
+
+module "rds-mysql" {
+  source = "git::https://github.com/Archesys-Aws-Terraform-Modules/terraform-aws-rds/?ref=main"
+  region = var.region
+  random_password_length                 = var.random_password_length
+  db_subnet_group_use_name_prefix        = var.db_subnet_group_use_name_prefix
+  db_subnet_group_description            = var.db_subnet_group_description
+  subnet_ids                             = var.subnet_ids #module.network.subnet_ids
+  family                                 = var.family
+  parameters                             = var.parameters
+  option_group_use_name_prefix           = var.option_group_use_name_prefix
+  option_group_description               = var.option_group_description
+  engine                                 = var.engine
+  major_engine_version                   = var.major_engine_version
+  options                                = var.options
+  option_group_timeouts                  = var.option_group_timeouts
+  identifier                             = var.identifier
+  instance_use_identifier_prefix         = var.instance_use_identifier_prefix
+  engine_version                         = var.engine_version
+  instance_class                         = var.instance_class
+  allocated_storage                      = var.allocated_storage
+  storage_encrypted                      = var.storage_encrypted
+  kms_key_id                             = var.kms_key_id
+  license_model                          = var.license_model
+  db_name                                = var.db_name
+  username                               = var.username
+  manage_master_user_password            = var.manage_master_user_password
+  port                                   = var.port
+  domain                                 = var.domain
+  domain_iam_role_name                   = var.domain_iam_role_name
+  iam_database_authentication_enabled    = var.iam_database_authentication_enabled
+  custom_iam_instance_profile            = var.custom_iam_instance_profile
+  vpc_security_group_ids                 = var.security_groups_ids #concat(module.security-groups.standard_security_group_ids, var.inbound_security_group)
+  network_type                           = var.network_type
+  availability_zone                      = var.availability_zone
+  multi_az                               = var.multi_az
+  iops                                   = var.iops
+  storage_throughput                     = var.storage_throughput
+  publicly_accessible                    = var.publicly_accessible
+  ca_cert_identifier                     = var.ca_cert_identifier
+  allow_major_version_upgrade            = var.allow_major_version_upgrade
+  auto_minor_version_upgrade             = var.auto_minor_version_upgrade
+  apply_immediately                      = var.apply_immediately
+  maintenance_window                     = var.maintenance_window
+  blue_green_update                      = var.blue_green_update
+  snapshot_identifier                    = var.snapshot_identifier
+  copy_tags_to_snapshot                  = var.copy_tags_to_snapshot
+  skip_final_snapshot                    = var.skip_final_snapshot
+  final_snapshot_identifier_prefix       = var.final_snapshot_identifier_prefix
+  performance_insights_enabled           = var.performance_insights_enabled
+  performance_insights_retention_period  = var.performance_insights_retention_period
+  performance_insights_kms_key_id        = var.performance_insights_enabled ? var.performance_insights_kms_key_id : null
+  replicate_source_db                    = var.replicate_source_db
+  replica_mode                           = var.replica_mode
+  backup_retention_period                = var.backup_retention_period
+  backup_window                          = var.backup_window
+  max_allocated_storage                  = var.max_allocated_storage
+  monitoring_interval                    = var.monitoring_interval
+  monitoring_role_arn                    = var.monitoring_role_arn
+  monitoring_role_name                   = var.monitoring_role_name
+  monitoring_role_use_name_prefix        = var.monitoring_role_use_name_prefix
+  monitoring_role_description            = var.monitoring_role_description
+  create_monitoring_role                 = var.create_monitoring_role
+  monitoring_role_permissions_boundary   = var.monitoring_role_permissions_boundary
+  character_set_name                     = var.character_set_name
+  nchar_character_set_name               = var.nchar_character_set_name
+  timezone                               = var.timezone
+  enabled_cloudwatch_logs_exports        = var.enabled_cloudwatch_logs_exports
+  create_cloudwatch_log_group            = var.create_cloudwatch_log_group
+  cloudwatch_log_group_retention_in_days = var.cloudwatch_log_group_retention_in_days
+  cloudwatch_log_group_kms_key_id        = var.cloudwatch_log_group_kms_key_id
+  timeouts                               = var.timeouts
+  deletion_protection                    = var.deletion_protection
+  delete_automated_backups               = var.delete_automated_backups
+  restore_to_point_in_time               = var.restore_to_point_in_time
+  s3_import                              = var.s3_import
+  BusinessOwner                          = var.BusinessOwner
+  SystemMaintainer                       = var.SystemMaintainer
+  Environment                            = var.Environment
+  data_classification                    = var.data_classification
+  Domain                                 = var.Domain
+  application                            = var.application
+  maintainer                             = var.maintainer
+  layer                                  = var.layer
+  path                                   = var.path #module.iam.default_iam_role_path
+  storage_type                           = var.storage_type
+}

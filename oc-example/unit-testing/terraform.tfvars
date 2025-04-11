@@ -1,0 +1,20 @@
+region                         = "us-east-1"
+deletion_window_in_days        = 7
+ecs_cloudwatch_log_group_name  = "ecs-logs-test"
+ecs_cluster_name               = "ecs-cluster1"
+logging                        = "OVERRIDE"
+cloud_watch_encryption_enabled = true
+capacity_providers             = ["FARGATE"]
+capacity_provider              = "FARGATE"
+cluster_type                   = "FARGATE"
+
+application         = "pocs"
+Environment         = "Dev"
+BusinessOwner       = "Test Bo Owner"
+SystemMaintainer    = "Test system maintainer"
+Domain              = "cms.gov"
+data_classification = "non-public"
+maintainer          = "Archesys"
+OE_Impacting        = "no"
+team_name           = "datadaog tag team name test"
+need_zscaler        = false
